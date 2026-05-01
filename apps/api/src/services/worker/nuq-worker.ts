@@ -63,9 +63,7 @@ import { initializeEngineForcing } from "../../scraper/WebScraper/utils/engine-f
     if (job === null) {
       _logger.info("No jobs to process", { module: "nuq/metrics" });
       await new Promise(resolve => setTimeout(resolve, noJobTimeout));
-      if (!config.NUQ_RABBITMQ_URL) {
-        noJobTimeout = Math.min(noJobTimeout * 2, 10000);
-      }
+      noJobTimeout = Math.min(noJobTimeout * 2, 10000);
       continue;
     }
 

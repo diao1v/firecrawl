@@ -43,21 +43,38 @@ import { logger } from "../../lib/logger";
     process.on("SIGTERM", shutdown);
   }
 
+  const MAX_IDLE_INTERVAL = 10000;
+  const FAST_INTERVAL = 250;
+
+  const prefetchLoop = async (queue: { prefetchJobs: () => Promise<number> }) => {
+    let interval = FAST_INTERVAL;
+    while (true) {
+      const count = await queue.prefetchJobs();
+      if (count > 0) {
+        interval = FAST_INTERVAL;
+      } else {
+        interval = Math.min(interval * 2, MAX_IDLE_INTERVAL);
+      }
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+  };
+
   try {
     await Promise.all([
+      prefetchLoop(crawlFinishedQueue),
       (async () => {
-        while (true) {
-          await crawlFinishedQueue.prefetchJobs();
-          await new Promise(resolve => setTimeout(resolve, 250));
-        }
-      })(),
-      (async () => {
+        let interval = FAST_INTERVAL;
         while (true) {
           if (config.NUQ_PREFETCH_WORKER_HEARTBEAT_URL) {
             fetch(config.NUQ_PREFETCH_WORKER_HEARTBEAT_URL).catch(() => {});
           }
-          await scrapeQueue.prefetchJobs();
-          await new Promise(resolve => setTimeout(resolve, 250));
+          const count = await scrapeQueue.prefetchJobs();
+          if (count > 0) {
+            interval = FAST_INTERVAL;
+          } else {
+            interval = Math.min(interval * 2, MAX_IDLE_INTERVAL);
+          }
+          await new Promise(resolve => setTimeout(resolve, interval));
         }
       })(),
     ]);
