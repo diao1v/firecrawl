@@ -231,3 +231,8 @@ SELECT cron.schedule('nuq_group_crawl_clean', '*/5 * * * *', $$
   )
   SELECT 1;
 $$);
+
+-- pg_cron never prunes its own run log; with 15-second jobs it grows ~5 GB in six months.
+SELECT cron.schedule('cron_job_run_details_purge', '0 3 * * *', $$
+  DELETE FROM cron.job_run_details WHERE end_time < now() - interval '3 days';
+$$);
